@@ -1,0 +1,45 @@
+{
+    "eventVersion": "1.08",
+    "userIdentity": {
+        "type": "AssumedRole",
+        "principalId": "ajwdjawdjawjdJCAJWDJAWJDJ",
+        "arn": "arn:aws:sts::123456789:assumed-role/Role",
+        "accountId": "123456789",
+        "accessKeyId": "ASIA2E6JQ3LKYZFAUI4S",
+        "sessionContext": {
+            "sessionIssuer": {
+                "type": "Role",
+                "principalId": "AROAJPO5S56WK67HXGISI",
+                "arn": "arn:aws:iam::123456789:role/BolDefaultRole",
+                "accountId": "123456789",
+                "userName": "Test"
+            },
+            "webIdFederationData": {},
+            "attributes": {
+                "creationDate": "2022-04-08T14:16:43Z",
+                "mfaAuthenticated": "false"
+            },
+            "ec2RoleDelivery": "2.0"
+        }
+    },
+    "eventTime": "2022-04-08T14:40:00Z",
+    "eventSource": "ssm.amazonaws.com",
+    "eventName": "UpdateInstanceInformation",
+    "awsRegion": "eu-central-1",
+    "sourceIPAddress": "123.123.123.123",
+    "userAgent": "aws-sdk-go/1.41.4 (go1.16.8; linux; amd64) amazon-ssm-agent/",
+    "requestParameters": {},
+    "responseElements": null,
+    "requestID": "96080bc2-c732-4604-8592-84f1e5f958cf",
+    "eventID": "c08bda79-5a52-4128-b578-0513324ce638",
+    "readOnly": false,
+    "eventType": "AwsApiCall",
+    "managementEvent": true,
+    "recipientAccountId": "697817946837",
+    "eventCategory": "Management",
+    "tlsDetails": {
+        "tlsVersion": "TLSv1.2",
+        "cipherSuite": "ECDHE-RSA-AES128-GCM-SHA256",
+        "clientProvidedHostHeader": "ssm.eu-central-1.amazonaws.com"
+    }
+}
