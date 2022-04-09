@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/hown3d/terraform-iam-generator/internal/aws"
 	"github.com/hown3d/terraform-iam-generator/internal/metrics"
@@ -16,20 +17,21 @@ func main() {
 	flag.Parse()
 	messageChan := make(chan metrics.CsmMessage)
 	svc, err := metrics.NewServerAndListen(messageChan)
-	defer svc.Stop()
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	go svc.Read()
 
+	var wg sync.WaitGroup
 	// collect messages
 	var msgs []metrics.CsmMessage
 	go func() {
-		for {
-			msg := <-messageChan
+		wg.Add(1)
+		for msg := range messageChan {
 			msgs = append(msgs, msg)
 		}
+		wg.Done()
 	}()
 
 	err = terraform.Apply(terraform.Options{
@@ -45,6 +47,8 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
+	svc.Stop()
+	wg.Wait()
 
 	policy, err := aws.GenerateIamPolicy(msgs)
 	if err != nil {

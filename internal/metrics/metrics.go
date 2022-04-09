@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -50,6 +51,10 @@ func (s Server) Read() {
 	for {
 		n, _, err := s.conn.ReadFrom(b)
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				close(s.messageChan)
+				return
+			}
 			log.Println(fmt.Errorf("reading from udp connection: %w", err))
 			return
 		}
