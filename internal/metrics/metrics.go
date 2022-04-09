@@ -14,18 +14,8 @@ type Server struct {
 }
 
 type CsmMessage struct {
-	ClientID       string `json:"ClientId"`
-	API            string `json:"Api"`
-	Service        string `json:"Service"`
-	Timestamp      int64  `json:"Timestamp"`
-	Type           string `json:"Type"`
-	Version        int    `json:"Version"`
-	UserAgent      string `json:"UserAgent"`
-	AttemptLatency int    `json:"AttemptLatency"`
-	Region         string `json:"Region"`
-	AccessKey      string `json:"AccessKey"`
-	HTTPStatusCode int    `json:"HttpStatusCode"`
-	XAmznRequestID string `json:"XAmznRequestId"`
+	API     string `json:"Api"`
+	Service string `json:"Service"`
 }
 
 func listen(port int) (*net.UDPConn, error) {
