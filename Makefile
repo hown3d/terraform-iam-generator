@@ -13,3 +13,6 @@ test: out_dir
 
 out_dir:
 	@mkdir _out || true
+
+build: out_dir
+	GOOS=linux go build -o _out/main main.go

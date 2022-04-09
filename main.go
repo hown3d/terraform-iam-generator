@@ -16,7 +16,7 @@ var directory *string = flag.String("dir", "", "terraform directory to use")
 
 func main() {
 	flag.Parse()
-	start := time.Now()
+	start := time.Now().UTC()
 	err := terraform.Apply(terraform.Options{
 		Directory: *directory,
 	})
@@ -27,7 +27,7 @@ func main() {
 	terraform.Destroy(terraform.Options{
 		Directory: *directory,
 	})
-	end := time.Now()
+	end := time.Now().UTC()
 
 	sts, err := aws.NewStsService()
 	if err != nil {
@@ -36,26 +36,32 @@ func main() {
 	}
 
 	ctx := context.Background()
-
 	userArn, err := sts.GetCallerIdentity(ctx)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	events, err := aws.NewEventService()
+	events, err := aws.NewCloudtrailService()
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
 	// cut arn to get only the name
-	userName := userArn[strings.LastIndex(userArn, ",")+1:]
+	userName := userArn[strings.LastIndex(userArn, "/")+1:]
+	log.Printf("Using %s as userName", userName)
 
-	collectedEvents, err := events.GetEventsOfUser(ctx, userName, &start, &end)
+	log.Printf("Lookup events between %s and %s", start, end)
+	iamActions, err := events.GetIamActions(ctx, userName, &start, &end)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	fmt.Println(collectedEvents)
+	for _, e := range iamActions {
+		fmt.Printf("APICall:%s\n", e.APICall)
+		fmt.Printf("Resources:%v\n", e.Resources)
+		fmt.Printf("Service:%v\n", e.Service)
+		fmt.Println("-------")
+	}
 }

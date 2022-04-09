@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -21,7 +22,12 @@ type cloudTrailService struct {
 	client CloudTrailClient
 }
 
-func NewEventService() (cloudTrailService, error) {
+const (
+	defaultMaxRetries = 3
+	apiCallEventType  = "AwsApiCall"
+)
+
+func NewCloudtrailService() (cloudTrailService, error) {
 	cfg, err := newConfig(context.Background(), "eu-central-1")
 	if err != nil {
 		return cloudTrailService{}, fmt.Errorf("creating aws config: %w", err)
@@ -31,13 +37,13 @@ func NewEventService() (cloudTrailService, error) {
 	}, nil
 }
 
-func (s cloudTrailService) GetEventsOfUser(ctx context.Context, user string, startTime *time.Time, endTime *time.Time) (events []types.Event, err error) {
+func (s cloudTrailService) GetIamActions(ctx context.Context, user string, startTime *time.Time, endTime *time.Time) (actions []IamAction, err error) {
+	retries := 0
 	nextToken := aws.String("")
 	for nextToken != nil {
 		resp, err := s.client.LookupEvents(ctx, &cloudtrail.LookupEventsInput{
 			StartTime: startTime,
 			EndTime:   endTime,
-			//EventCategory: "managment",
 			LookupAttributes: []types.LookupAttribute{
 				{
 					AttributeKey:   types.LookupAttributeKeyUsername,
@@ -49,24 +55,67 @@ func (s cloudTrailService) GetEventsOfUser(ctx context.Context, user string, sta
 			return nil, fmt.Errorf("looking up events in cloudtrail: %w", err)
 		}
 		if resp == nil {
-			return events, nil
+			return actions, nil
 		}
+		// aws cloudtrail can have a delay, so wait for the event to show off
 		for _, event := range resp.Events {
 			var s struct {
-				UserAgent string `json:"userAgent"`
+				UserAgent    string `json:"userAgent"`
+				EventType    string `json:"eventType"`
+				AWSRegion    string `json:"awsRegion"`
+				UserIdentity struct {
+					AccountID string `json:"accountId"`
+				} `json:"userIdentity"`
 			}
 			json.Unmarshal([]byte(*event.CloudTrailEvent), &s)
-			if hasTerraformUserAgent(s.UserAgent) {
-				events = append(events, event)
+			if hasTerraformUserAgent(s.UserAgent) && s.EventType == apiCallEventType {
+				actions = append(actions, mapEventToAction(event, s.AWSRegion, s.UserIdentity.AccountID))
 			}
+		}
+		if len(actions) == 0 && retries < defaultMaxRetries {
+			retries++
+			log.Printf("cloudtrail has delay uploading the events by up to 15 minutes, waiting for %v minutes before retrying", retries)
+			time.Sleep(time.Duration(retries) * time.Minute)
+			continue
 		}
 		nextToken = resp.NextToken
 	}
-	return events, nil
+	return actions, nil
 }
 
-type myEvent struct {
-	types.Event
+type IamAction struct {
+	Service   string
+	APICall   string
+	Resources []Arn
+}
+type Arn string
+
+func mapEventToAction(e types.Event, awsRegion string, accountID string) IamAction {
+	service := getServiceFromEventSource(*e.EventSource)
+	resourceArns := make([]Arn, len(e.Resources))
+	for _, r := range e.Resources {
+		resourceArns = append(resourceArns, eventResourceArn(*r.ResourceName, getResourceTypeWithoutPrefix(*r.ResourceType), service, awsRegion, accountID))
+	}
+	return IamAction{
+		APICall:   *e.EventName,
+		Resources: resourceArns,
+		Service:   service,
+	}
+}
+
+func eventResourceArn(resourceName string, resourceType string, service string, region string, accountID string) Arn {
+	return Arn(fmt.Sprintf("arn:aws:%s:%s:%s:%s/%s", service, region, accountID, resourceType, resourceName))
+}
+
+func getServiceFromEventSource(source string) string {
+	return strings.Split(source, ".")[0]
+}
+
+// aws sets the resource Type by default to "AWS::<SERVICE>::<TYPE>".
+// we only want the type in lowercase to use inside an arn
+func getResourceTypeWithoutPrefix(resourceType string) string {
+	return strings.ToLower(resourceType[strings.LastIndex(resourceType, "::")+2:])
+
 }
 
 func hasTerraformUserAgent(userAgent string) bool {

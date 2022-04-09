@@ -61,6 +61,10 @@ func newCommand(mode string, opts Options) (*exec.Cmd, error) {
 	for _, v := range opts.Vars {
 		cmd.Args = append(cmd.Args, "-var", fmt.Sprintf("'%s=%s'", v.Key, v.Value))
 	}
+
+	// activate aws client side monitoring to get all api calls
+	opts.Env = append(opts.Env, "AWS_CSM_PORT=31000")
+	opts.Env = append(opts.Env, "AWS_CSM_HOST=localhost")
 	cmd.Env = opts.Env
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
