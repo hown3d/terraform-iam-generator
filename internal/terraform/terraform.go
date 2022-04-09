@@ -65,6 +65,7 @@ func newCommand(mode string, opts Options) (*exec.Cmd, error) {
 	// activate aws client side monitoring to get all api calls
 	opts.Env = append(opts.Env, "AWS_CSM_PORT=31000")
 	opts.Env = append(opts.Env, "AWS_CSM_HOST=localhost")
+	opts.Env = append(opts.Env, os.Environ()...)
 	cmd.Env = opts.Env
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

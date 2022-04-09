@@ -46,16 +46,14 @@ func NewServerAndListen(messageChan chan CsmMessage) (Server, error) {
 }
 
 func (s Server) Read() {
-	b := make([]byte, 1024)
+	b := make([]byte, 2048)
 	for {
-		// 1. read it to byte slice
 		n, _, err := s.conn.ReadFrom(b)
 		if err != nil {
 			log.Println(fmt.Errorf("reading from udp connection: %w", err))
-			continue
+			return
 		}
 
-		// 2. unmarshal it to Message struct
 		var msg CsmMessage
 		if err = json.Unmarshal(b[:n], &msg); err != nil {
 			log.Println(fmt.Errorf("unmarshaling metrics message: %w", err))
