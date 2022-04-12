@@ -10,7 +10,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var csmEnvVars []string = []string{
+	"AWS_CSM_ENABLED=true",
+	"AWS_CSM_PORT=31000",
+	"AWS_CSM_HOST=localhost",
+}
+
 func Test_newCommand(t *testing.T) {
+	// mock environ in tests
+	environ = func() []string {
+		return []string{}
+	}
 	type args struct {
 		mode string
 		opts Options
@@ -32,9 +42,10 @@ func Test_newCommand(t *testing.T) {
 			},
 			want: &exec.Cmd{
 				Path:   "terraform",
-				Args:   []string{"terraform", "destroy", "-auto-approve"},
+				Args:   []string{"terraform", "destroy"},
 				Stdout: os.Stdout,
 				Stderr: os.Stderr,
+				Env:    csmEnvVars,
 			},
 			wantErr: false,
 		},
@@ -48,9 +59,10 @@ func Test_newCommand(t *testing.T) {
 			},
 			want: &exec.Cmd{
 				Path:   "terraform",
-				Args:   []string{"terraform", "apply", "-auto-approve"},
+				Args:   []string{"terraform", "apply"},
 				Stdout: os.Stdout,
 				Stderr: os.Stderr,
+				Env:    csmEnvVars,
 			},
 			wantErr: false,
 		},
@@ -60,10 +72,7 @@ func Test_newCommand(t *testing.T) {
 				mode: "apply",
 				opts: Options{
 					Directory: "test",
-					Vars: []struct {
-						Key   string
-						Value string
-					}{
+					Vars: []Variable{
 						{
 							Key:   "hello",
 							Value: "world",
@@ -77,9 +86,10 @@ func Test_newCommand(t *testing.T) {
 			},
 			want: &exec.Cmd{
 				Path:   "terraform",
-				Args:   []string{"terraform", "apply", "-auto-approve", "-var", "'hello=world'", "-var", "'foo=bar'"},
+				Args:   []string{"terraform", "apply", "-var", "hello=world", "-var", "foo=bar"},
 				Stdout: os.Stdout,
 				Stderr: os.Stderr,
+				Env:    csmEnvVars,
 			},
 			wantErr: false,
 		},
@@ -89,7 +99,7 @@ func Test_newCommand(t *testing.T) {
 				mode: "apply",
 				opts: Options{
 					Directory: "test",
-					VarsFiles: []string{"./helloWorld.tfvars", "./fooBar.tfvars"},
+					VarsFiles: []VariableFile{"./helloWorld.tfvars", "./fooBar.tfvars"},
 				},
 			},
 			want: &exec.Cmd{
@@ -97,12 +107,34 @@ func Test_newCommand(t *testing.T) {
 				Args: []string{
 					"terraform",
 					"apply",
-					"-auto-approve",
 					fmt.Sprintf("-var-file=%s", "./helloWorld.tfvars"),
 					fmt.Sprintf("-var-file=%s", "./fooBar.tfvars"),
 				},
 				Stdout: os.Stdout,
 				Stderr: os.Stderr,
+				Env:    csmEnvVars,
+			},
+			wantErr: false,
+		},
+		{
+			args: args{
+				mode: "apply",
+				opts: Options{
+					Directory: "test",
+					VarsFiles: []VariableFile{"./helloWorld.tfvars", "./fooBar.tfvars"},
+				},
+			},
+			want: &exec.Cmd{
+				Path: "terraform",
+				Args: []string{
+					"terraform",
+					"apply",
+					fmt.Sprintf("-var-file=%s", "./helloWorld.tfvars"),
+					fmt.Sprintf("-var-file=%s", "./fooBar.tfvars"),
+				},
+				Stdout: os.Stdout,
+				Stderr: os.Stderr,
+				Env:    csmEnvVars,
 			},
 			wantErr: false,
 		},
@@ -131,4 +163,33 @@ func lookPath(t *testing.T, binary string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func Test_checkAutoApprove(t *testing.T) {
+	tests := []struct {
+		name       string
+		opts       *Options
+		wantedArgs []string
+	}{
+		{
+			name: "with auto-approve",
+			opts: &Options{
+				AutoApprove: true,
+			},
+			wantedArgs: []string{"-auto-approve"},
+		},
+		{
+			name: "without auto-approve",
+			opts: &Options{
+				AutoApprove: false,
+			},
+			wantedArgs: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			checkAutoApprove(tt.opts)
+			assert.Equal(t, tt.wantedArgs, tt.opts.AdditionalArgs)
+		})
+	}
 }

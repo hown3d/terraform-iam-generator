@@ -10,7 +10,7 @@ import (
 	"github.com/hown3d/terraform-iam-generator/internal/terraform"
 )
 
-func Run(dir string) {
+func Run(dir string, tfVars []terraform.Variable, tfVarFiles []terraform.VariableFile) {
 	messageChan := make(chan metrics.CsmMessage)
 	svc, err := metrics.NewServerAndListen(messageChan)
 	if err != nil {
@@ -30,18 +30,20 @@ func Run(dir string) {
 		wg.Done()
 	}()
 
-	err = terraform.Apply(terraform.Options{
+	tfOpts := terraform.Options{
 		Directory: dir,
-	})
+		VarsFiles: tfVarFiles,
+		Vars:      tfVars,
+	}
+	err = terraform.Apply(tfOpts)
 	if err != nil {
 		log.Println(err)
 	}
 
-	err = terraform.Destroy(terraform.Options{
-		Directory: dir,
-	})
+	err = terraform.Destroy(tfOpts)
 	if err != nil {
 		log.Println(err)
+		return
 	}
 	svc.Stop()
 	wg.Wait()

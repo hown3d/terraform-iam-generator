@@ -9,6 +9,11 @@ import (
 )
 
 func GenerateIamPolicy(msgs []metrics.CsmMessage) ([]byte, error) {
+	policy := generateIamPolicy(msgs)
+	return marshalPolicyDocument(policy)
+}
+
+func generateIamPolicy(msgs []metrics.CsmMessage) policyDocument {
 	policy := policyDocument{
 		Version: "2012-10-17",
 	}
@@ -33,6 +38,10 @@ func GenerateIamPolicy(msgs []metrics.CsmMessage) ([]byte, error) {
 		Action:   actionsFromMap(),
 		Resource: "*",
 	}}
+	return policy
+}
+
+func marshalPolicyDocument(policy policyDocument) ([]byte, error) {
 	data, err := json.MarshalIndent(policy, "", "\t")
 	if err != nil {
 		return nil, fmt.Errorf("marshaling policy: %w", err)

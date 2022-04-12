@@ -17,3 +17,4 @@
 .terraform/
 /dist/
 _out/*
+.vscode/

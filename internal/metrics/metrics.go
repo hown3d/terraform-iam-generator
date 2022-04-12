@@ -8,9 +8,14 @@ import (
 	"net"
 )
 
+type udpConn interface {
+	ReadFrom(b []byte) (int, net.Addr, error)
+	Close() error
+}
+
 type Server struct {
 	messageChan chan CsmMessage
-	conn        *net.UDPConn
+	conn        udpConn
 }
 
 type CsmMessage struct {
@@ -18,7 +23,7 @@ type CsmMessage struct {
 	Service string `json:"Service"`
 }
 
-func listen(port int) (*net.UDPConn, error) {
+func listen(port int) (udpConn, error) {
 	return net.ListenUDP("udp", &net.UDPAddr{
 		Port: port,
 		IP:   net.ParseIP("127.0.0.1"),
@@ -37,7 +42,7 @@ func NewServerAndListen(messageChan chan CsmMessage) (Server, error) {
 }
 
 func (s Server) Read() {
-	b := make([]byte, 2048)
+	b := make([]byte, 512)
 	for {
 		n, _, err := s.conn.ReadFrom(b)
 		if err != nil {
@@ -51,7 +56,7 @@ func (s Server) Read() {
 
 		var msg CsmMessage
 		if err = json.Unmarshal(b[:n], &msg); err != nil {
-			log.Println(fmt.Errorf("unmarshaling metrics message: %w", err))
+			log.Println(fmt.Errorf("unmarshal metrics message: %w", err))
 			continue
 		}
 		s.messageChan <- msg
